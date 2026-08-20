@@ -1,0 +1,1 @@
+Sample upload file used by file-upload tests.

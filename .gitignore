@@ -1,8 +1,22 @@
-
-# Playwright
+# Dependencies
 node_modules/
+
+# Playwright / framework output
+/reports/
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-/playwright/.auth/
+/.auth/
+/downloads/
+
+# Local, machine-specific environment overrides (never commit secrets)
+config/environments/.env.local
+config/environments/*.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

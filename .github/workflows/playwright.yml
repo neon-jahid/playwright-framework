@@ -1,27 +1,106 @@
+# CI pipeline for the Playwright framework.
+#
+# Secrets/vars used (Settings > Secrets and variables > Actions):
+#   vars.BASE_URL / vars.API_BASE_URL   optional overrides of the .env.<env> files
+#   secrets.STANDARD_USERNAME / secrets.STANDARD_PASSWORD
+#   secrets.ADMIN_USERNAME / secrets.ADMIN_PASSWORD
+# Real environment variables always win over config/environments/.env.* files,
+# so nothing in the repo has to change per environment.
 name: Playwright Tests
+
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+  schedule:
+    - cron: '0 2 * * *' # nightly regression against staging
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to test
+        type: choice
+        default: staging
+        options: [dev, staging, prod]
+      grep:
+        description: 'Tag filter, e.g. @smoke'
+        type: string
+        default: ''
+
+env:
+  TEST_ENV: ${{ inputs.environment || (github.event_name == 'schedule' && 'staging') || 'dev' }}
+  BASE_URL: ${{ vars.BASE_URL }}
+  API_BASE_URL: ${{ vars.API_BASE_URL }}
+  STANDARD_USERNAME: ${{ secrets.STANDARD_USERNAME }}
+  STANDARD_PASSWORD: ${{ secrets.STANDARD_PASSWORD }}
+  ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+  ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+
 jobs:
-  test:
-    timeout-minutes: 60
+  lint:
+    name: Lint & format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-    - name: Install dependencies
-      run: npm ci
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
-    - name: Run Playwright tests
-      run: npx playwright test
-    - uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+
+  test:
+    name: ${{ matrix.project }}
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: api
+            browser: '' # no browser needed
+          - project: chromium
+            browser: chromium
+          - project: firefox
+            browser: firefox
+          - project: webkit
+            browser: webkit
+          - project: mobile-chrome
+            browser: chromium
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - run: npm ci
+
+      # Only the browser this shard needs - keeps the job fast.
+      - name: Install Playwright browsers
+        if: matrix.browser != ''
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run tests
+        run: npx playwright test --project=${{ matrix.project }} ${{ inputs.grep && format('--grep {0}', inputs.grep) || '' }}
+
+      # reports/ holds the html, json and junit reporters plus traces/videos.
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: reports/
+          retention-days: 30
+
+      - name: Publish JUnit summary
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: reports/junit/results.xml
+          check_name: Test results (${{ matrix.project }})
+          fail_on_failure: false
