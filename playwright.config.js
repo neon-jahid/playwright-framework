@@ -56,10 +56,13 @@ export default defineConfig({
 
   projects: [
     // Signs in once per run and stores the session in .auth/<env>-<role>.json.
+    // Storage state is browser-agnostic, so every UI project reuses this single
+    // chromium sign-in - CI must therefore install chromium in every UI shard.
     {
       name: 'setup',
       testDir: './tests/setup',
       testMatch: /.*\.setup\.js/,
+      use: { ...devices['Desktop Chrome'] },
     },
 
     // --- UI projects ---------------------------------------------------------

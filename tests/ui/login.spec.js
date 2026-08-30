@@ -17,6 +17,13 @@ test.describe('Login', { tag: ['@smoke', '@auth'] }, () => {
   });
 
   test('valid user can sign in', { tag: '@critical' }, async ({ pages, config }) => {
+    // Same guard as the dashboard suite: without credentials there is nothing
+    // to assert, so skip instead of failing the run.
+    test.skip(
+      !config.users.standard?.password,
+      'No credentials. Configure STANDARD_USERNAME / STANDARD_PASSWORD.'
+    );
+
     await pages.loginPage.login(config.users.standard);
 
     await expect(pages.loginPage.page).toHaveURL(/dashboard/i);

@@ -63,8 +63,12 @@ function loadDotEnvFiles(environmentName) {
   };
 
   // Never clobber real environment variables: CI secrets must win over files.
+  // An empty value counts as "not set": GitHub Actions always exports the
+  // variables listed under `env:`, so an undefined `vars.BASE_URL` /
+  // `secrets.*` arrives as "" and would otherwise mask the .env file value.
   for (const [key, value] of Object.entries(merged)) {
-    if (process.env[key] === undefined) process.env[key] = value;
+    const current = process.env[key];
+    if (current === undefined || current === '') process.env[key] = value;
   }
   return process.env;
 }

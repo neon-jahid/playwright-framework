@@ -5,7 +5,9 @@
 #   secrets.STANDARD_USERNAME / secrets.STANDARD_PASSWORD
 #   secrets.ADMIN_USERNAME / secrets.ADMIN_PASSWORD
 # Real environment variables always win over config/environments/.env.* files,
-# so nothing in the repo has to change per environment.
+# so nothing in the repo has to change per environment. Undefined vars/secrets
+# are exported as empty strings by Actions; the config loader treats an empty
+# value as "not set" and falls back to the .env file.
 name: Playwright Tests
 
 on:
@@ -61,15 +63,17 @@ jobs:
       matrix:
         include:
           - project: api
-            browser: '' # no browser needed
+            browsers: '' # no browser needed
+          # The UI projects depend on the `setup` project, which signs in with
+          # chromium - so every UI shard needs chromium on top of its own engine.
           - project: chromium
-            browser: chromium
+            browsers: chromium
           - project: firefox
-            browser: firefox
+            browsers: firefox chromium
           - project: webkit
-            browser: webkit
+            browsers: webkit chromium
           - project: mobile-chrome
-            browser: chromium
+            browsers: chromium
     steps:
       - uses: actions/checkout@v4
 
@@ -80,10 +84,10 @@ jobs:
 
       - run: npm ci
 
-      # Only the browser this shard needs - keeps the job fast.
+      # Only the browsers this shard needs - keeps the job fast.
       - name: Install Playwright browsers
-        if: matrix.browser != ''
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        if: matrix.browsers != ''
+        run: npx playwright install --with-deps ${{ matrix.browsers }}
 
       - name: Run tests
         run: npx playwright test --project=${{ matrix.project }} ${{ inputs.grep && format('--grep {0}', inputs.grep) || '' }}
