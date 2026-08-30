@@ -4,6 +4,9 @@ A reusable, scalable UI + API test framework built on [Playwright Test](https://
 page objects, dependency-injected fixtures, multi-environment configuration, session reuse and rich
 failure diagnostics.
 
+> **বাংলা ব্যবহারকারী ম্যানুয়াল:** [`docs/USER-MANUAL-BN.md`](docs/USER-MANUAL-BN.md) — full
+> Bangla manual covering setup, every module, test-writing patterns, CI and troubleshooting.
+
 The `framework/` directory is application-agnostic — drop it into any project. Everything specific to
 the application under test lives in `src/`, `tests/` and `config/environments/`.
 
